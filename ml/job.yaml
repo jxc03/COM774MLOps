@@ -1,0 +1,15 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+code: ..
+command: >-
+  python code/train.py
+  --data_dir ${{ inputs.incident_data }}
+  --n_estimators 100
+  --max_depth 10
+environment: azureml://registries/azureml/environments/sklearn-1.5/labels/latest
+compute: azureml:incident-compute
+inputs:
+  incident_data:
+    type: uri_folder
+    path: azureml:data_processed_split:1
+experiment_name: incident_priority_training
+description: Baseline RandomForest model for incident priority classification
