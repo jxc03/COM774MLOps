@@ -1,0 +1,22 @@
+artifact_path: file:C:/Users/jcari/OneDrive/Ulster Masters/774 - Intel Engin & Infra/ForCW2/COM774MLOps/mlruns/1/models/m-65197f3488384d2cb107a3258c8d2106/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.6
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+mlflow_version: 3.7.0
+model_id: m-65197f3488384d2cb107a3258c8d2106
+model_size_bytes: 29846562
+model_uuid: m-65197f3488384d2cb107a3258c8d2106
+prompts: null
+run_id: 3024b2373ae0455e80e44ffa858d0faa
+utc_time_created: '2025-12-07 20:26:45.672445'
