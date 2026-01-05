@@ -56,6 +56,39 @@ class TestEndToEndPipeline(unittest.TestCase):
         # Basic sanity: predictions shape
         self.assertEqual(len(y_pred), len(self.X_test_small))
 
+    # Test that number of predictions matches number of input
+    def test_predictions_shape_matches_input(self):
+        model = build_model(
+            X_sample=self.X_train_small,
+            n_estimators=50,
+            max_depth=None,
+            random_state=42,
+        )
+
+        model.fit(self.X_train_small, self.y_train_small)
+        y_pred = model.predict(self.X_test_small)
+
+        self.assertEqual(
+            len(y_pred), 
+            len(self.X_test_small),
+            "Number of predictions doesn't match number of test samples"
+        )
+
+    # Test that model produces consistent results with same random_state
+    def test_model_performance_consistent_across_runs(self):
+        model1 = build_model(X_sample=self.X_train_small, n_estimators=20, random_state=42)
+        model2 = build_model(X_sample=self.X_train_small, n_estimators=20, random_state=42)
+        
+        model1.fit(self.X_train_small, self.y_train_small)
+        model2.fit(self.X_train_small, self.y_train_small)
+        
+        pred1 = model1.predict(self.X_test_small)
+        pred2 = model2.predict(self.X_test_small)
+        
+        np.testing.assert_array_equal(
+            pred1, pred2,
+            "Model predictions should be identical with same random_state"
+        )
 
 if __name__ == "__main__":
     unittest.main()
