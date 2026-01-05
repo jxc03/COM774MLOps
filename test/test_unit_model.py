@@ -24,6 +24,7 @@ class TestModelBuilding(unittest.TestCase):
             str(data_dir)
         )
 
+    # Test that build_model returns a sklearn Pipeline
     def test_build_model_returns_pipeline(self):
         model = build_model(
             X_sample=self.X_train,
@@ -35,6 +36,7 @@ class TestModelBuilding(unittest.TestCase):
             model, Pipeline, "build_model should return a sklearn Pipeline"
         )
 
+    # Test that the model can fit and predict
     def test_model_can_fit_and_predict_on_small_subset(self):
         model = build_model(
             X_sample=self.X_train,
@@ -59,6 +61,29 @@ class TestModelBuilding(unittest.TestCase):
         # Check predictions are finite numbers or valid classes
         self.assertFalse(
             np.any(pd.isna(preds)), "Predictions contain NaNs"
+        )
+
+    # Test that predictions are valid class labels
+    def test_model_predictions_are_valid_classes(self):
+        model = build_model(
+            X_sample=self.X_train,
+            n_estimators=10,
+            max_depth=5,
+            random_state=42,
+        )
+
+        X_small = self.X_train.iloc[:50]
+        y_small = pd.Series(self.y_train).iloc[:50]
+        
+        model.fit(X_small, y_small)
+        preds = model.predict(X_small)
+        
+        # All predictions should be in the set of known classes
+        known_classes = set(y_small.unique())
+        pred_classes = set(preds)
+        self.assertTrue(
+            pred_classes.issubset(known_classes),
+            f"Predictions {pred_classes} contain unknown classes (expected {known_classes})"
         )
 
 if __name__ == "__main__":
