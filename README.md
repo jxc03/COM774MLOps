@@ -11,6 +11,10 @@ https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-job-comm
 az ml job create --file job.yaml --resource-group <your-resouce-group> --workspace-name <your-workspace>  #Make sure to run this from inside the "production" directory
 az ml job create --file ml/job.yaml --resource-group cw2-mlops --workspace-name cw2-mlops #'ml/' since job.yaml is in ml folder
 
+<i>Deploying the model</i>
+# Register the model from your MLflow run
+az ml model create --name incident-priority-model --version 1 --path azureml://jobs/<job-id>/outputs/model --resource-group cw2-mlops --workspace-name <your-workspace>
+
 <i>For testing</i>
 1. Go to file and run file 
 2. Or 'cd test' then 
