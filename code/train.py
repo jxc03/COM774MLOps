@@ -6,6 +6,7 @@ import numpy as np
 import joblib
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from mlflow.models.signature import infer_signature
 
 from data_util import load_train_test
 from model_util import build_model
@@ -33,7 +34,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Log training parameters (hyperparameters + any config)
+    # Log training parameters (hyperparameters)
     with mlflow.start_run():
         mlflow.log_params({
             "n_estimators": args.n_estimators,
