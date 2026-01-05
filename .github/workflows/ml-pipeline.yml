@@ -19,15 +19,18 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install pandas scikit-learn mlflow pytest
+          python -m pip install --upgrade pip
+          pip install pandas scikit-learn mlflow pytest joblib matplotlib
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
       
       - name: Run unit tests
         run: |
-          python -m pytest test_unit_data.py test_unit_model.py -v
+          python -m pytest test/test_unit_data.py test/test_unit_model.py -v
       
       - name: Run integration tests
         run: |
-          python -m pytest test_integration_pipeline.py -v
+          python -m pytest test/test_integration_pipeline.py -v
 
   train:
     needs: test
@@ -40,7 +43,11 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      
+
+      - name: Install Azure ML CLI extension
+        run: |
+          az extension add -n ml -y
+          
       - name: Submit Azure ML Job
         run: |
           az ml job create --file ml/job.yaml --resource-group cw2-mlops --workspace-name cw2-mlops
