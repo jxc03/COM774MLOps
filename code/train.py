@@ -47,6 +47,8 @@ def main():
 
     # Load data
     X_train, X_test, y_train, y_test = load_train_test(args.data_dir)
+    print(f"Training data shape: {X_train.shape}")
+    print(f"Test data shape: {X_test.shape}")
 
     # Build and train the model
     model = build_model(
@@ -64,7 +66,12 @@ def main():
     f1 = f1_score(y_test, y_pred, average="weighted")
     prec = precision_score(y_test, y_pred, average="weighted")
     rec = recall_score(y_test, y_pred, average="weighted")
-
+    print(f"\nModel Evaluation")
+    print(f"Accuracy: {acc:.4f}")
+    print(f"F1 (weighted): {f1:.4f}")
+    print(f"Precision (weighted): {prec:.4f}")
+    print(f"Recall (weighted): {rec:.4f}")
+          
     # Log metrics
     mlflow.log_metric("accuracy", acc)
     mlflow.log_metric("f1_weighted", f1)
@@ -87,6 +94,7 @@ def main():
 
     # Classification report
     report_str = classification_report(y_test, y_pred)
+    print(f"\nClassification Report\n{report_str}")
     report_path = output_dir / "classification_report.txt"
     with open(report_path, "w") as f:
         f.write(report_str)
@@ -94,34 +102,68 @@ def main():
 
     # Feature importances
     import numpy as np
-    if hasattr(model, "feature_importances_"):
-        importances = model.feature_importances_
-        feature_names = X_train.columns
+    import joblib
+    # Access the classifier step in the pipeline
+    clf = model.named_steps['clf']
+    if hasattr(clf, "feature_importances_"):
+        importances = clf.feature_importances_
+
+        # Get feature names after preprocessing
+        preprocessor = model.named_steps['preprocessor']
+        try:
+            feature_names = preprocessor.get_feature_names_out()
+        except AttributeError:
+            # Fallback if get_feature_names_out not available
+            feature_names = [f"feature_{i}" for i in range(len(importances))]
+        
         n_top = min(20, len(importances))
         indices = np.argsort(importances)[::-1][:n_top]
         top_importances = importances[indices]
-        top_features = feature_names[indices]
+        top_features = [feature_names[i] for i in indices]
 
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-        ax2.bar(range(n_top), top_importances)
-        ax2.set_xticks(range(n_top))
-        ax2.set_xticklabels(top_features, rotation=90)
-        ax2.set_ylabel("Feature importance")
-        ax2.set_title("Top feature importances (RandomForest)")
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
+        ax2.barh(range(n_top), top_importances[::-1], color='steelblue')
+        ax2.set_yticks(range(n_top))
+        ax2.set_yticklabels(top_features[::-1])
+        ax2.set_xlabel("Feature Importance")
+        ax2.set_title("Top 20 Feature Importances (RandomForest)")
         fig2.tight_layout()
 
         fi_path = output_dir / "feature_importances_top20.png"
-        fig2.savefig(fi_path)
+        fig2.savefig(fi_path, dpi=150)
         plt.close(fig2)
         mlflow.log_artifact(str(fi_path))
 
+    model_dir = output_dir / "model"
+    model_dir.mkdir(exist_ok=True)
+    
+    model_path = model_dir / "model.pkl"
+    joblib.dump(model, model_path) # pip install joblib
+    print(f"\nModel saved to: {model_path}")
+    
+    # Log the model directory as an artifact
+    mlflow.log_artifacts(str(model_dir), artifact_path="model")
+
+    # Try-except to handle Azure ML compatibility issues
+    try:
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="sklearn_model",
+            serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE
+        )
+        print("MLflow sklearn model logged successfully")
+    except Exception as e:
+        print(f"Note: mlflow.sklearn.log_model skipped due to Azure ML compatibility: {e}")
+        print("Model was saved as artifact instead (outputs/model/model.pkl)")
+
+    print("\n=== Training Complete ===")
+
     # Log the trained model as an artefact
     # Later register & deploy
-    mlflow.sklearn.log_model(
-        sk_model=model,
-        artifact_path="model"
-    )
-
+    #mlflow.sklearn.log_model(
+        #sk_model=model,
+        #artifact_path="model"
+    #)
 
 if __name__ == "__main__":
     main()
