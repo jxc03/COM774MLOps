@@ -43,6 +43,4 @@ jobs:
       
       - name: Submit Azure ML Job
         run: |
-          az ml job create --file job.yaml \
-            --resource-group cw2-mlops \
-            --workspace-name <your-workspace>
+          az ml job create --file ml/job.yaml --resource-group cw2-mlops --workspace-name cw2-mlops
