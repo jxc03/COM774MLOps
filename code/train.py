@@ -2,6 +2,8 @@ import argparse
 
 import mlflow
 import mlflow.sklearn
+import numpy as np
+import joblib
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
@@ -31,14 +33,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Set up the MLflow experiment
-    #mlflow.set_experiment("incident_priority_experiment")
-
-    # Everything inside this context gets logged as a single MLflow run
-    #with mlflow.start_run():
-
     # Log training parameters (hyperparameters + any config)
-    mlflow.log_params({
+    with mlflow.start_run():
+        mlflow.log_params({
             "n_estimators": args.n_estimators,
             "max_depth": args.max_depth,
             "random_state": args.random_state,
@@ -61,16 +58,10 @@ def main():
 
     # Evaluate
     y_pred = model.predict(X_test)
-
     acc = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, average="weighted")
     prec = precision_score(y_test, y_pred, average="weighted")
     rec = recall_score(y_test, y_pred, average="weighted")
-    print(f"\nModel Evaluation")
-    print(f"Accuracy: {acc:.4f}")
-    print(f"F1 (weighted): {f1:.4f}")
-    print(f"Precision (weighted): {prec:.4f}")
-    print(f"Recall (weighted): {rec:.4f}")
           
     # Log metrics
     mlflow.log_metric("accuracy", acc)
@@ -96,20 +87,16 @@ def main():
     report_str = classification_report(y_test, y_pred)
     print(f"\nClassification Report\n{report_str}")
     report_path = output_dir / "classification_report.txt"
-    with open(report_path, "w") as f:
-        f.write(report_str)
-    mlflow.log_artifact(str(report_path))
+    report_path.write_text(report_str)
 
     # Feature importances
-    import numpy as np
-    import joblib
     # Access the classifier step in the pipeline
     clf = model.named_steps['clf']
     if hasattr(clf, "feature_importances_"):
         importances = clf.feature_importances_
-
         # Get feature names after preprocessing
         preprocessor = model.named_steps['preprocessor']
+
         try:
             feature_names = preprocessor.get_feature_names_out()
         except AttributeError:
@@ -118,13 +105,11 @@ def main():
         
         n_top = min(20, len(importances))
         indices = np.argsort(importances)[::-1][:n_top]
-        top_importances = importances[indices]
-        top_features = [feature_names[i] for i in indices]
 
         fig2, ax2 = plt.subplots(figsize=(10, 6))
-        ax2.barh(range(n_top), top_importances[::-1], color='steelblue')
+        ax2.barh(range(n_top), importances[indices][::-1])
         ax2.set_yticks(range(n_top))
-        ax2.set_yticklabels(top_features[::-1])
+        ax2.set_yticklabels(feature_names[indices][::-1])
         ax2.set_xlabel("Feature Importance")
         ax2.set_title("Top 20 Feature Importances (RandomForest)")
         fig2.tight_layout()
@@ -132,38 +117,24 @@ def main():
         fi_path = output_dir / "feature_importances_top20.png"
         fig2.savefig(fi_path, dpi=150)
         plt.close(fig2)
-        mlflow.log_artifact(str(fi_path))
-
-    model_dir = output_dir / "model"
-    model_dir.mkdir(exist_ok=True)
     
-    model_path = model_dir / "model.pkl"
-    joblib.dump(model, model_path) # pip install joblib
-    print(f"\nModel saved to: {model_path}")
+    mlflow.log_artifact(str(fi_path))
+    X_sig = X_train.head(50) if hasattr(X_train, "head") else X_train[:50]
+    y_sig = model.predict(X_sig)
+    signature = infer_signature(X_sig, y_sig)
+
+    # Create input example for model signature
+    input_example = X_train.head(1) if hasattr(X_train, "head") else X_train[:1]
     
-    # Log the model directory as an artifact
-    mlflow.log_artifacts(str(model_dir), artifact_path="model")
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model",
+        input_example=input_example,
+        signature=signature,
+        serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+    )
 
-    # Try-except to handle Azure ML compatibility issues
-    try:
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="sklearn_model",
-            serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE
-        )
-        print("MLflow sklearn model logged successfully")
-    except Exception as e:
-        print(f"Note: mlflow.sklearn.log_model skipped due to Azure ML compatibility: {e}")
-        print("Model was saved as artifact instead (outputs/model/model.pkl)")
-
-    print("\n=== Training Complete ===")
-
-    # Log the trained model as an artefact
-    # Later register & deploy
-    #mlflow.sklearn.log_model(
-        #sk_model=model,
-        #artifact_path="model"
-    #)
+    print("Training Complete")
 
 if __name__ == "__main__":
     main()
