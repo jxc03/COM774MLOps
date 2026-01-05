@@ -9,7 +9,7 @@ def main():
     api_key = "<YOUR_ENDPOINT_KEY>" # better: read from env var
 
     if api_key.startswith("<"):
-        raise ValueError("Please set your endpoint URL and key in call_endpoint.py")
+        raise ValueError("Set the endpoint URL and key in call_endpoint.py")
 
     # Build sample input load
     # Load one row from X_test CSV
